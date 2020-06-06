@@ -1,9 +1,8 @@
-import { getRepository, Repository, In } from 'typeorm';
+import { getRepository, Repository } from 'typeorm';
 
 import IProductsRepository from '@modules/products/repositories/IProductsRepository';
 import ICreateProductDTO from '@modules/products/dtos/ICreateProductDTO';
 import IUpdateProductsQuantityDTO from '@modules/products/dtos/IUpdateProductsQuantityDTO';
-import AppError from '@shared/errors/AppError';
 import Product from '../entities/Product';
 
 interface IFindProducts {
@@ -22,57 +21,40 @@ class ProductsRepository implements IProductsRepository {
     price,
     quantity,
   }: ICreateProductDTO): Promise<Product> {
-    const products = this.ormRepository.create({
-      name,
-      price,
-      quantity,
-    });
+    const product = this.ormRepository.create({ name, price, quantity });
 
-    await this.ormRepository.save(products);
+    await this.ormRepository.save(product);
 
-    return products;
+    return product;
   }
 
   public async findByName(name: string): Promise<Product | undefined> {
-    const findProduct = await this.ormRepository.findOne({
-      where: { name },
-    });
-
-    return findProduct;
+    return this.ormRepository.findOne({ where: { name } });
   }
 
   public async findAllById(products: IFindProducts[]): Promise<Product[]> {
-    const findProducts = await this.ormRepository.findByIds(products);
-
-    return findProducts;
+    return this.ormRepository.findByIds(products.map(prod => prod.id));
   }
 
   public async updateQuantity(
     products: IUpdateProductsQuantityDTO[],
   ): Promise<Product[]> {
-    const productsId = products.map(product => product.id);
+    const productsReturn = await this.ormRepository.findByIds(
+      products.map(prod => prod.id),
+    );
 
-    const listProducts = await this.ormRepository.find({
-      where: {
-        id: In(productsId),
-      },
-    });
-
-    listProducts.forEach(product => {
-      const productUpdated = products.find(
-        findProduct => findProduct.id === product.id,
+    products.forEach(productUpdate => {
+      const productToBeUpdated = productsReturn.find(
+        prod => productUpdate.id === prod.id,
       );
-
-      if (!productUpdated) {
-        throw new AppError('No products founded');
+      if (productToBeUpdated) {
+        productToBeUpdated.quantity -= productUpdate.quantity;
       }
-
-      Object.assign(product, { quantity: productUpdated.quantity });
     });
 
-    await this.ormRepository.save(listProducts);
+    await this.ormRepository.save(productsReturn);
 
-    return listProducts;
+    return productsReturn;
   }
 }
 

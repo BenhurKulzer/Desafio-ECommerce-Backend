@@ -1,14 +1,14 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 @Entity('customers')
-class Customer {
-  @PrimaryGeneratedColumn('uuid')
+export default class Customer {
+  @PrimaryGeneratedColumn()
   id: string;
 
   @Column()
@@ -23,5 +23,3 @@ class Customer {
   @UpdateDateColumn()
   updated_at: Date;
 }
-
-export default Customer;

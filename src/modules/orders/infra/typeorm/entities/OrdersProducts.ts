@@ -12,8 +12,8 @@ import Order from '@modules/orders/infra/typeorm/entities/Order';
 import Product from '@modules/products/infra/typeorm/entities/Product';
 
 @Entity('orders_products')
-class OrdersProducts {
-  @PrimaryGeneratedColumn('uuid')
+export default class OrdersProducts {
+  @PrimaryGeneratedColumn()
   id: string;
 
   @ManyToOne(() => Order, order => order.order_products)
@@ -24,16 +24,16 @@ class OrdersProducts {
   @JoinColumn({ name: 'product_id' })
   product: Product;
 
-  @Column('uuid')
+  @Column()
   product_id: string;
 
-  @Column('uuid')
+  @Column()
   order_id: string;
 
-  @Column({ type: 'numeric', precision: 18, scale: 2 })
+  @Column('decimal', { precision: 10, scale: 2 })
   price: number;
 
-  @Column('int')
+  @Column()
   quantity: number;
 
   @CreateDateColumn()
@@ -42,5 +42,3 @@ class OrdersProducts {
   @UpdateDateColumn()
   updated_at: Date;
 }
-
-export default OrdersProducts;

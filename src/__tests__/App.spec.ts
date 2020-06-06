@@ -208,6 +208,50 @@ describe('App', () => {
     expect(response.status).toEqual(400);
   });
 
+  it('should be able to list one specific order', async () => {
+    const customer = await request(app).post('/customers').send({
+      name: 'Rocketseat',
+      email: 'oi@rocketseat.com.br',
+    });
+
+    const product = await request(app).post('/products').send({
+      name: 'Produto 01',
+      price: 500,
+      quantity: 50,
+    });
+
+    const order = await request(app)
+      .post('/orders')
+      .send({
+        customer_id: customer.body.id,
+        products: [
+          {
+            id: product.body.id,
+            quantity: 5,
+          },
+        ],
+      });
+
+    const response = await request(app).get(`/orders/${order.body.id}`);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        customer: expect.objectContaining({
+          id: customer.body.id,
+          name: 'Rocketseat',
+          email: 'oi@rocketseat.com.br',
+        }),
+        order_products: expect.arrayContaining([
+          expect.objectContaining({
+            product_id: product.body.id,
+            price: '500.00',
+            quantity: 5,
+          }),
+        ]),
+      }),
+    );
+  });
+
   it('should be able to subtract an product total quantity when it is ordered', async () => {
     const productsRepository = getRepository(Product);
 
@@ -259,50 +303,6 @@ describe('App', () => {
     expect(foundProduct).toEqual(
       expect.objectContaining({
         quantity: 40,
-      }),
-    );
-  });
-
-  it('should be able to list one specific order', async () => {
-    const customer = await request(app).post('/customers').send({
-      name: 'Rocketseat',
-      email: 'oi@rocketseat.com.br',
-    });
-
-    const product = await request(app).post('/products').send({
-      name: 'Produto 01',
-      price: 500,
-      quantity: 50,
-    });
-
-    const order = await request(app)
-      .post('/orders')
-      .send({
-        customer_id: customer.body.id,
-        products: [
-          {
-            id: product.body.id,
-            quantity: 5,
-          },
-        ],
-      });
-
-    const response = await request(app).get(`/orders/${order.body.id}`);
-
-    expect(response.body).toEqual(
-      expect.objectContaining({
-        customer: expect.objectContaining({
-          id: customer.body.id,
-          name: 'Rocketseat',
-          email: 'oi@rocketseat.com.br',
-        }),
-        order_products: expect.arrayContaining([
-          expect.objectContaining({
-            product_id: product.body.id,
-            price: '500.00',
-            quantity: 5,
-          }),
-        ]),
       }),
     );
   });

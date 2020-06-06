@@ -1,9 +1,8 @@
+import ICustomersRepository from '@modules/customers/repositories/ICustomersRepository';
+import IProductsRepository from '@modules/products/repositories/IProductsRepository';
+import AppError from '@shared/errors/AppError';
 import { inject, injectable } from 'tsyringe';
 
-import AppError from '@shared/errors/AppError';
-
-import IProductsRepository from '@modules/products/repositories/IProductsRepository';
-import ICustomersRepository from '@modules/customers/repositories/ICustomersRepository';
 import Order from '../infra/typeorm/entities/Order';
 import IOrdersRepository from '../repositories/IOrdersRepository';
 
@@ -17,71 +16,69 @@ interface IRequest {
   products: IProduct[];
 }
 
-interface IProductCart {
-  product_id: string;
-  price: number;
-  quantity: number;
-}
-
 @injectable()
-class CreateProductService {
+class CreateOrderService {
   constructor(
     @inject('OrdersRepository')
     private ordersRepository: IOrdersRepository,
-
     @inject('ProductsRepository')
     private productsRepository: IProductsRepository,
-
     @inject('CustomersRepository')
     private customersRepository: ICustomersRepository,
-  ) {}
+  ) { }
 
   public async execute({ customer_id, products }: IRequest): Promise<Order> {
     const customer = await this.customersRepository.findById(customer_id);
 
     if (!customer) {
-      throw new AppError('Customer does not exists.');
+      throw new AppError('Customer does not exist!');
     }
 
-    const productsStock = await this.productsRepository.findAllById(products);
+    const prodDb = await this.productsRepository.findAllById(
+      products.map(prod => {
+        return { id: prod.id };
+      }),
+    );
 
-    if (productsStock.length === 0) {
-      throw new AppError('Products not found.');
+    if (prodDb.length === 0) {
+      throw new AppError('No product with the provided ids were found');
     }
 
-    const orderProducts: IProductCart[] = [];
-    productsStock.forEach(stock => {
-      const productStock = stock;
-      const { id: product_id, price, quantity } = productStock;
+    const productsParsed = products.map(prod => {
+      const productFound = prodDb.find(pr => pr.id === prod.id);
 
-      const orderProduct = products.find(product => product.id === product_id);
-
-      if (!orderProduct) {
-        return;
+      if (productFound && productFound.quantity < prod.quantity) {
+        throw new AppError(
+          'The quantity on the order is bigger than the available for the product!',
+        );
       }
 
-      if (orderProduct.quantity > quantity) {
-        throw new AppError('Products with insufficient quantities.');
-      }
-
-      orderProducts.push({
-        product_id,
+      const price = productFound ? productFound.price : 0;
+      return {
+        product_id: prod.id,
         price,
-        quantity: orderProduct.quantity,
-      });
-
-      productStock.quantity -= orderProduct.quantity;
+        quantity: prod.quantity,
+      };
     });
 
-    const order = await this.ordersRepository.create({
+    // subtract amount of the product
+    await this.productsRepository.updateQuantity(
+      products.map(prod => {
+        return {
+          id: prod.id,
+          quantity: prod.quantity,
+        };
+      }),
+    );
+
+    // create the order
+    const orderCreated = await this.ordersRepository.create({
       customer,
-      products: orderProducts,
+      products: productsParsed,
     });
 
-    await this.productsRepository.updateQuantity(productsStock);
-
-    return order;
+    return orderCreated;
   }
 }
 
-export default CreateProductService;
+export default CreateOrderService;
